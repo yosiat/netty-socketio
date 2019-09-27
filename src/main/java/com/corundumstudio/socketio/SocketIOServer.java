@@ -23,6 +23,9 @@ import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.util.concurrent.Future;
@@ -133,6 +136,8 @@ public class SocketIOServer implements ClientListeners {
         Class<? extends ServerChannel> channelClass = NioServerSocketChannel.class;
         if (configCopy.isUseLinuxNativeEpoll()) {
             channelClass = EpollServerSocketChannel.class;
+        } else if (KQueue.isAvailable()) {
+            channelClass = KQueueServerSocketChannel.class;
         }
 
         ServerBootstrap b = new ServerBootstrap();
@@ -176,7 +181,10 @@ public class SocketIOServer implements ClientListeners {
     }
 
     protected void initGroups() {
-        if (configCopy.isUseLinuxNativeEpoll()) {
+        if(KQueue.isAvailable()) {
+            bossGroup = new KQueueEventLoopGroup(configCopy.getBossThreads());
+            workerGroup = new KQueueEventLoopGroup(configCopy.getWorkerThreads());
+        } else if (configCopy.isUseLinuxNativeEpoll()) {
             bossGroup = new EpollEventLoopGroup(configCopy.getBossThreads());
             workerGroup = new EpollEventLoopGroup(configCopy.getWorkerThreads());
         } else {
